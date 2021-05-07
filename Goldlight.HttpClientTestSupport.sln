@@ -5,6 +5,13 @@ VisualStudioVersion = 16.0.31019.35
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Goldlight.HttpClientTestSupport", "Goldlight.HttpClientTestSupport\Goldlight.HttpClientTestSupport.csproj", "{B7B72FD7-4C1D-4357-A336-A5EAEFEDD2ED}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Goldlight.HttpClientTestSupportTests", "Goldlight.HttpClientTestSupportTests\Goldlight.HttpClientTestSupportTests.csproj", "{070259F1-FCDB-4A2B-A4E2-B499C830C41D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{8326FBF1-D3C1-47DE-A740-B57FEDFDD146}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +22,10 @@ Global
 		{B7B72FD7-4C1D-4357-A336-A5EAEFEDD2ED}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B7B72FD7-4C1D-4357-A336-A5EAEFEDD2ED}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B7B72FD7-4C1D-4357-A336-A5EAEFEDD2ED}.Release|Any CPU.Build.0 = Release|Any CPU
+		{070259F1-FCDB-4A2B-A4E2-B499C830C41D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{070259F1-FCDB-4A2B-A4E2-B499C830C41D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{070259F1-FCDB-4A2B-A4E2-B499C830C41D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{070259F1-FCDB-4A2B-A4E2-B499C830C41D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
