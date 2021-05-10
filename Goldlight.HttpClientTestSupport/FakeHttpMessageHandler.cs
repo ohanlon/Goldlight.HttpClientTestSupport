@@ -8,6 +8,24 @@ using System.Threading.Tasks;
 
 namespace Goldlight.HttpClientTestSupport
 {
+
+  internal class HttpActions
+  {
+    private readonly List<Action> _actions = new List<Action>();
+
+    public void AddAction(Action action)
+    {
+      _actions.Add(action);
+    }
+
+    public void InvokeAll()
+    {
+      foreach (Action action in _actions)
+      {
+        action?.Invoke();
+      }
+    }
+  }
   /// <summary>
   /// An <see cref="HttpMessageHandler" /> implementation that allows us to mock HTTP calls for <see cref="HttpClient"/> calls.
   /// </summary>
@@ -47,31 +65,83 @@ namespace Goldlight.HttpClientTestSupport
     private Version _version;
     private static readonly Version DefaultVersion = new Version(1, 0);
 
+    private readonly Lazy<HttpActions> _preActions =
+      new Lazy<HttpActions>(() => new HttpActions());
+
+    private readonly Lazy<HttpActions> _postActions =
+      new Lazy<HttpActions>(() => new HttpActions());
+
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-      if (request.Content != null)
+      HttpResponseMessage responseMessage = null;
+      try
       {
-        await request.Content.ReadAsStringAsync();
-      }
+        if (_preActions.IsValueCreated)
+        {
+          _preActions.Value.InvokeAll();
+        }
+        if (request.Content != null)
+        {
+          await request.Content.ReadAsStringAsync();
+        }
 
-      HttpResponseMessage responseMessage = new HttpResponseMessage
-      {
-        StatusCode = _statusCode,
-        RequestMessage = request,
-        Content = new StringContent(_content ?? string.Empty),
-        Version = _version ?? DefaultVersion
-      };
-      if (_header.IsValueCreated)
-      {
-        _header.Value.AddHeadersToResponse(responseMessage);
-      }
+        responseMessage = new HttpResponseMessage
+        {
+          StatusCode = _statusCode,
+          RequestMessage = request,
+          Content = new StringContent(_content ?? string.Empty),
+          Version = _version ?? DefaultVersion
+        };
+        if (_header.IsValueCreated)
+        {
+          _header.Value.AddHeadersToResponse(responseMessage);
+        }
 #if NETSTANDARD2_1
       if (_trailingHeader.IsValueCreated)
       {
         _trailingHeader.Value.AddHeadersToResponse(responseMessage);
       }
 #endif
+      }
+      catch
+      {
+        return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+      }
+      if (_postActions.IsValueCreated)
+      {
+        _postActions.Value.InvokeAll();
+      }
       return responseMessage;
+    }
+
+    /// <summary>
+    /// Add an action that will happen at the start of the <see cref="SendAsync"/> call.
+    /// </summary>
+    /// <remarks>
+    /// If you need to add multiple actions, you can append multiple WithPreRequest calls
+    /// together. The invocation of these actions happens sequentially, following the order
+    /// they were added.
+    /// </remarks>
+    /// <param name="action">The action to perform.</param>
+    public FakeHttpMessageHandler WithPreRequest(Action action)
+    {
+      _preActions.Value.AddAction(action);
+      return this;
+    }
+
+    /// <summary>
+    /// Add an action that will happen at the end of the <see cref="SendAsync"/> call.
+    /// </summary>
+    /// <remarks>
+    /// If you need to add multiple actions, you can append multiple WithPostRequest calls
+    /// together. The invocation of these actions happens sequentially, following the order
+    /// they were added.
+    /// </remarks>
+    /// <param name="action">The action to perform.</param>
+    public FakeHttpMessageHandler WithPostRequest(Action action)
+    {
+      _postActions.Value.AddAction(action);
+      return this;
     }
 
     /// <summary>

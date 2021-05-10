@@ -44,5 +44,49 @@ namespace Goldlight.HttpClientTestSupportTests
       IEnumerable<SampleModel> output = await exampleController.GetAll();
       Assert.Equal(2, output.Count());
     }
+
+    [Fact]
+    public async Task GivenPreActionForController_WhenProcessing_ThenActionIsPerformed()
+    {
+      int invocationCount = 0;
+      List<SampleModel> sample = new List<SampleModel>() { new SampleModel(), new SampleModel() };
+      FakeHttpMessageHandler fake = new FakeHttpMessageHandler().WithPreRequest(() => invocationCount++)
+        .WithExpectedContent(sample);
+      HttpClient httpClient = new HttpClient(fake);
+      ExampleControllerHandling exampleController = new ExampleControllerHandling(httpClient);
+      IEnumerable<SampleModel> output = await exampleController.GetAll();
+      Assert.Equal(1, invocationCount);
+    }
+
+    [Fact]
+    public async Task GivenPostActionForController_WhenProcessing_ThenActionIsPerformed()
+    {
+      int invocationCount = 0;
+      List<SampleModel> sample = new List<SampleModel>() { new SampleModel(), new SampleModel() };
+      FakeHttpMessageHandler fake = new FakeHttpMessageHandler().WithPostRequest(() => invocationCount++)
+        .WithExpectedContent(sample);
+      HttpClient httpClient = new HttpClient(fake);
+      ExampleControllerHandling exampleController = new ExampleControllerHandling(httpClient);
+      IEnumerable<SampleModel> output = await exampleController.GetAll();
+      await exampleController.GetAll();
+      Assert.Equal(2, invocationCount);
+    }
+
+    [Fact]
+    public async Task GivenPreAndPostActionForController_WhenProcessing_ThenActionIsPerformed()
+    {
+      int invocationCount = 0;
+      int postInvocationCount = 0;
+      List<SampleModel> sample = new List<SampleModel>() { new SampleModel(), new SampleModel() };
+      FakeHttpMessageHandler fake = new FakeHttpMessageHandler().WithPreRequest(() => invocationCount++)
+        .WithPreRequest(() => throw new Exception("Throwing deliberately"))
+        .WithPostRequest(() => postInvocationCount++)
+        .WithExpectedContent(sample);
+      HttpClient httpClient = new HttpClient(fake);
+      ExampleControllerHandling exampleController = new ExampleControllerHandling(httpClient);
+      IEnumerable<SampleModel> output = await exampleController.GetAll();
+      Assert.Equal(1, invocationCount);
+      Assert.Equal(0, postInvocationCount);
+    }
   }
 }

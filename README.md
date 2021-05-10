@@ -1,4 +1,4 @@
-# Testing HttpClient
+# Easy HttpClient testing with Goldlight.HttpClientTestSupport
 ## Scenario
 We have a series of unit tests and, in them, we want to test
 a request from `HttpClient` but, in the spirit of true isolated tests, we don't 
@@ -202,6 +202,72 @@ to add [trailing headers](https://docs.microsoft.com/en-us/dotnet/api/system.net
 .NetStandard2.1 such as .NET Core 3.1 and .NET 5. Use `WithTrailingResponseHeader` to add the
 trailing headers.
 
-### Additional
+### Setting version information
 If we need to set version numbers for our REST calls, we have `WithVersion` to provide 
 version information.
+```csharp
+[Fact]
+public async Task GivenValidRequestWithCustomVersion_WhenPostIsCalled_ThenCustomVersionIsSet()
+{
+  FakeHttpMessageHandler fake = new FakeHttpMessageHandler().WithVersion(new Version(2, 1));
+  HttpClient httpClient = new HttpClient(fake);
+  HttpResponseMessage response = await httpClient.PostWrapperAsync("MyContent");
+  Assert.Equal(response.Version, new Version(2, 1));
+}
+```
+### Extending the calls with your own tests
+In some instances, we may want to perform additional testing that is hard to predict. Suppose we want to verify how many times we have called `HttpClient`, we need some mechanism to perform this. We could provide an InvocationCount property, but this means
+we are trying to predict the different ways the API will be used. Instead of doing this, we have an opted to provide the ability to
+add pre and post invocation actions. The pre handler is called as the first operation in the `SendAsync` method and the post handler
+is called at just before the return. The first example here demonstrates adding the ability to count how many times the method was
+called using the `WithPreRequest` method.
+```csharp
+[Fact]
+public async Task GivenPreActionForController_WhenProcessing_ThenActionIsPerformed()
+{
+  int invocationCount = 0;
+  List<SampleModel> sample = new List<SampleModel>() { new SampleModel(), new SampleModel() };
+  FakeHttpMessageHandler fake = new FakeHttpMessageHandler().WithPreRequest(() => invocationCount++)
+    .WithExpectedContent(sample);
+  HttpClient httpClient = new HttpClient(fake);
+  ExampleControllerHandling exampleController = new ExampleControllerHandling(httpClient);
+  IEnumerable<SampleModel> output = await exampleController.GetAll();
+  Assert.Equal(1, invocationCount);
+}
+```
+We can perform exactly the same invocation calculation using the `WithPostRequest` method.
+```csharp
+[Fact]
+public async Task GivenPostActionForController_WhenProcessing_ThenActionIsPerformed()
+{
+  int invocationCount = 0;
+  List<SampleModel> sample = new List<SampleModel>() { new SampleModel(), new SampleModel() };
+  FakeHttpMessageHandler fake = new FakeHttpMessageHandler().WithPostRequest(() => invocationCount++)
+    .WithExpectedContent(sample);
+  HttpClient httpClient = new HttpClient(fake);
+  ExampleControllerHandling exampleController = new ExampleControllerHandling(httpClient);
+  IEnumerable<SampleModel> output = await exampleController.GetAll();
+  Assert.Equal(1, invocationCount);
+}
+```
+We can have multiple pre and post request actions. In the following example, we are deliberately going to throw
+an exception from our pre handler, verify that the pre handler was performed and check to ensure that the post handler
+was not reached because of the exception.
+```csharp
+[Fact]
+public async Task GivenPreAndPostActionForController_WhenProcessing_ThenActionIsPerformed()
+{
+  int invocationCount = 0;
+  int postInvocationCount = 0;
+  List<SampleModel> sample = new List<SampleModel>() { new SampleModel(), new SampleModel() };
+  FakeHttpMessageHandler fake = new FakeHttpMessageHandler().WithPreRequest(() => invocationCount++)
+    .WithPreRequest(() => throw new Exception("Throwing deliberately"))
+    .WithPostRequest(() => postInvocationCount++)
+    .WithExpectedContent(sample);
+  HttpClient httpClient = new HttpClient(fake);
+  ExampleControllerHandling exampleController = new ExampleControllerHandling(httpClient);
+  IEnumerable<SampleModel> output = await exampleController.GetAll();
+  Assert.Equal(1, invocationCount);
+  Assert.Equal(0, postInvocationCount);
+}
+```
