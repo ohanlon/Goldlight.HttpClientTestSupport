@@ -40,6 +40,16 @@ simulate web requests.
 
 Rather than making a mockable object, we are going to provide a `FakeHttpMessageHandler` that
 allows us to control what the response we receive back contains.
+## Installing Goldlight.HttpClientTestSupport
+Goldlight.HttpClientTestSupport is available as a .NET Standard 2.0 and .NET Standard 2.1 package 
+on NuGet, and can be installed using:
+```
+Install-Package Goldlight.HttpClientTestSupport
+```
+Using the dotnet command line:
+```
+dotnet add package Goldlight.HttpClientTestSupport
+```
 ### Basic usage
 The `FakeHttpMessageHandler` implementation makes certain assumptions when it is instantiated.
 Instantiation sets the expectation that our response message will be set to version 1.0 and the
