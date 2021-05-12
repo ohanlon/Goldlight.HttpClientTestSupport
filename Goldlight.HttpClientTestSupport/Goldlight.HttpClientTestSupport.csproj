@@ -4,7 +4,7 @@
     <TargetFrameworks>netstandard2.0;netstandard2.1</TargetFrameworks>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Authors>Peter O'Hanlon</Authors>
-    <Description>A rich-featurd HttpMessageHandler implementation suitable for use in HttpClient tests. This implementation provides the ability to populate the expected response with items such as the Headers and Version information.</Description>
+    <Description>A rich-featured HttpMessageHandler implementation suitable for use in HttpClient tests. This implementation provides the ability to populate the expected response with items such as the Headers and Version information.</Description>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Copyright>Peter O'Hanlon</Copyright>
     <RepositoryUrl>https://github.com/ohanlon/Goldlight.HttpClientTestSupport</RepositoryUrl>
