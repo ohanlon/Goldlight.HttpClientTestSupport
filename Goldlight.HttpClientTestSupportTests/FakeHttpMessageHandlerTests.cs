@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using Goldlight.HttpClientTestSupport;
 using System.Net;
@@ -119,7 +119,7 @@ namespace Goldlight.HttpClientTestSupportTests
     public async Task GivenValidRequestWithMultiValueTrailingHeader_WhenPostIsCalled_ThenTrailingHeaderIsSet()
     {
       FakeHttpMessageHandler fake =
-        new FakeHttpMessageHandler().WithTrailingResponseHeader("custom", new[] {"value", "value2"});
+        new FakeHttpMessageHandler().WithTrailingResponseHeader("custom", new[] { "value", "value2" });
       HttpClient httpClient = new HttpClient(fake);
       HttpResponseMessage response = await httpClient.PostWrapperAsync("Content");
       Assert.Equal(2, response.TrailingHeaders.GetValues("custom").Count());
@@ -129,7 +129,7 @@ namespace Goldlight.HttpClientTestSupportTests
     public async Task GivenValidRequestWithMultiValueHeader_WhenPostIsCalled_ThenHeaderIsSet()
     {
       FakeHttpMessageHandler fake =
-        new FakeHttpMessageHandler().WithResponseHeader("custom", new[] {"value", "value2"});
+        new FakeHttpMessageHandler().WithResponseHeader("custom", new[] { "value", "value2" });
       HttpClient httpClient = new HttpClient(fake);
       HttpResponseMessage response = await httpClient.PostWrapperAsync("Content");
       Assert.Equal(2, response.Headers.GetValues("custom").Count());
@@ -142,6 +142,24 @@ namespace Goldlight.HttpClientTestSupportTests
       HttpClient httpClient = new HttpClient(fake);
       HttpResponseMessage response = await httpClient.PostWrapperAsync("MyContent");
       Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GivenInvalidRequest_WhenRequestValudatorPerformed_ExceptionThrown()
+    {
+      FakeHttpMessageHandler fake = new FakeHttpMessageHandler()
+        .WithRequestValidator(request => request.Headers.TryGetValues("Authorization", out var _));
+      HttpClient httpClient = new HttpClient(fake);
+      await Assert.ThrowsAsync<HttpRequestAssertionException>(() => httpClient.PostWrapperAsync("MyContent"));
+    }
+
+    [Fact]
+    public async Task GivenValidRequest_WhenRequestValudatorPerformed_NoExceptionThrows()
+    {
+      FakeHttpMessageHandler fake = new FakeHttpMessageHandler()
+        .WithRequestValidator(request => request.Method == HttpMethod.Post);
+      HttpClient httpClient = new HttpClient(fake);
+      HttpResponseMessage response = await httpClient.PostWrapperAsync("MyContent");
     }
   }
 }

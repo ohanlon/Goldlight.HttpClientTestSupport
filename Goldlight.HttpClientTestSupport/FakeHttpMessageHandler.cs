@@ -26,6 +26,29 @@ namespace Goldlight.HttpClientTestSupport
       }
     }
   }
+
+  internal class HttpRequestAssertions
+  {
+    private readonly List<Func<HttpRequestMessage, bool>> _asserts = new List<Func<HttpRequestMessage, bool>>();
+
+    public void AddAction(Func<HttpRequestMessage, bool> requestAssertion)
+    {
+      _ = requestAssertion ?? throw new ArgumentNullException(nameof(requestAssertion));
+      _asserts.Add(requestAssertion);
+    }
+
+    public void InvokeAll(HttpRequestMessage request)
+    {
+      foreach (var assert in _asserts)
+      {
+        if (!assert(request))
+        {
+          throw new HttpRequestAssertionException();
+        }
+      }
+    }
+  }
+
   /// <summary>
   /// An <see cref="HttpMessageHandler" /> implementation that allows us to mock HTTP calls for <see cref="HttpClient"/> calls.
   /// </summary>
@@ -68,6 +91,9 @@ namespace Goldlight.HttpClientTestSupport
     private readonly Lazy<HttpActions> _preActions =
       new Lazy<HttpActions>(() => new HttpActions());
 
+    private readonly Lazy<HttpRequestAssertions> _requestAssertions =
+      new Lazy<HttpRequestAssertions>(() => new HttpRequestAssertions());
+
     private readonly Lazy<HttpActions> _postActions =
       new Lazy<HttpActions>(() => new HttpActions());
 
@@ -79,6 +105,10 @@ namespace Goldlight.HttpClientTestSupport
         if (_preActions.IsValueCreated)
         {
           _preActions.Value.InvokeAll();
+        }
+        if (_requestAssertions.IsValueCreated)
+        {
+          _requestAssertions.Value.InvokeAll(request);
         }
         if (request.Content != null)
         {
@@ -103,7 +133,7 @@ namespace Goldlight.HttpClientTestSupport
       }
 #endif
       }
-      catch
+      catch (Exception ex) when (ex is not HttpRequestAssertionException)
       {
         return new HttpResponseMessage(HttpStatusCode.InternalServerError);
       }
@@ -126,6 +156,13 @@ namespace Goldlight.HttpClientTestSupport
     public FakeHttpMessageHandler WithPreRequest(Action action)
     {
       _preActions.Value.AddAction(action);
+      return this;
+    }
+
+
+    public FakeHttpMessageHandler WithRequestValidator(Func<HttpRequestMessage, bool> requestValidator)
+    {
+      _requestAssertions.Value.AddAction(requestValidator);
       return this;
     }
 
