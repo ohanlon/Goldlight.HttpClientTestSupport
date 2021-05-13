@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -36,7 +36,7 @@ namespace Goldlight.HttpClientTestSupportTests
     [Fact]
     public async Task GivenMultipleInputsIntoController_WhenProcessing_ThenModelIsReturned()
     {
-      List<SampleModel> sample = new List<SampleModel>() {new SampleModel(), new SampleModel()};
+      List<SampleModel> sample = new List<SampleModel>() { new SampleModel(), new SampleModel() };
       FakeHttpMessageHandler fake = new FakeHttpMessageHandler().WithStatusCode(HttpStatusCode.OK)
         .WithResponseHeader("order66", "babyyoda").WithExpectedContent(sample);
       HttpClient httpClient = new HttpClient(fake);
@@ -87,6 +87,18 @@ namespace Goldlight.HttpClientTestSupportTests
       IEnumerable<SampleModel> output = await exampleController.GetAll();
       Assert.Equal(1, invocationCount);
       Assert.Equal(0, postInvocationCount);
+    }
+
+    [Fact]
+    public async Task GivenRequest_WhenProcessing_ThenRequestValidatorPerformed()
+    {
+      List<SampleModel> sample = new List<SampleModel>() { new SampleModel(), new SampleModel() };
+      FakeHttpMessageHandler fake = new FakeHttpMessageHandler()
+        .WithRequestValidator(request => request.Method == HttpMethod.Get)
+        .WithExpectedContent(sample);
+      HttpClient httpClient = new HttpClient(fake);
+      ExampleControllerHandling exampleController = new ExampleControllerHandling(httpClient);
+      await exampleController.GetAll();
     }
   }
 }
