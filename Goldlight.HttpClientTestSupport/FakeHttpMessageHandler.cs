@@ -27,21 +27,91 @@ namespace Goldlight.HttpClientTestSupport
     }
   }
 
+  internal record RequestAssertion
+  {
+    public RequestAssertion(Func<HttpRequestMessage, bool> validator, Type allowedException)
+    {
+      Validator = validator ?? throw new ArgumentNullException(nameof(validator));
+      AllowedException = allowedException ?? throw new ArgumentNullException(nameof(allowedException));
+    }
+
+    public Func<HttpRequestMessage, bool> Validator { get; }
+
+    public Type AllowedException { get; }
+  }
+
+  internal record AsyncRequestAssertion
+  {
+    public AsyncRequestAssertion(Func<HttpRequestMessage, Task<bool>> validator, Type allowedException)
+    {
+      Validator = validator ?? throw new ArgumentNullException(nameof(validator));
+      AllowedException = allowedException ?? throw new ArgumentNullException(nameof(allowedException));
+    }
+
+    public Func<HttpRequestMessage, Task<bool>> Validator { get; }
+
+    public Type AllowedException { get; }
+  }
+
   internal class HttpRequestAssertions
   {
-    private readonly List<Func<HttpRequestMessage, bool>> _asserts = new List<Func<HttpRequestMessage, bool>>();
+    private readonly List<RequestAssertion> _asserts = new List<RequestAssertion>();
+    private readonly List<AsyncRequestAssertion> _asyncAsserts = new List<AsyncRequestAssertion>();
 
-    public void AddAction(Func<HttpRequestMessage, bool> requestAssertion)
+    public void AddAction(RequestAssertion requestAssertion)
     {
       _ = requestAssertion ?? throw new ArgumentNullException(nameof(requestAssertion));
       _asserts.Add(requestAssertion);
     }
 
-    public void InvokeAll(HttpRequestMessage request)
+    public void AddAction(AsyncRequestAssertion requestAssertion)
+    {
+      _ = requestAssertion ?? throw new ArgumentNullException(nameof(requestAssertion));
+      _asyncAsserts.Add(requestAssertion);
+    }
+
+    public async Task InvokeAllAsync(HttpRequestMessage request)
+    {
+      Assert(request);
+      await AssertAsync(request).ConfigureAwait(false);
+    }
+
+    private void Assert(HttpRequestMessage request)
     {
       foreach (var assert in _asserts)
       {
-        if (!assert(request))
+        bool isRequestValid = false;
+        try
+        {
+          isRequestValid = assert.Validator(request);
+        }
+        catch (Exception ex) when (ex is not HttpRequestAssertionException && assert.AllowedException.IsInstanceOfType(ex))
+        {
+          throw new HttpRequestAssertionException(ex);
+        }
+
+        if (!isRequestValid)
+        {
+          throw new HttpRequestAssertionException();
+        }
+      }
+    }
+
+    private async Task AssertAsync(HttpRequestMessage request)
+    {
+      foreach (var assert in _asyncAsserts)
+      {
+        bool isRequestValid = false;
+        try
+        {
+          isRequestValid = await assert.Validator(request).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not HttpRequestAssertionException && assert.AllowedException.IsInstanceOfType(ex))
+        {
+          throw new HttpRequestAssertionException(ex);
+        }
+
+        if (!isRequestValid)
         {
           throw new HttpRequestAssertionException();
         }
@@ -96,7 +166,8 @@ namespace Goldlight.HttpClientTestSupport
 
     private readonly Lazy<HttpActions> _postActions =
       new Lazy<HttpActions>(() => new HttpActions());
-
+    
+    ///<inheritdoc/>
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
       HttpResponseMessage responseMessage = null;
@@ -108,11 +179,11 @@ namespace Goldlight.HttpClientTestSupport
         }
         if (_requestAssertions.IsValueCreated)
         {
-          _requestAssertions.Value.InvokeAll(request);
+          await _requestAssertions.Value.InvokeAllAsync(request).ConfigureAwait(false);
         }
         if (request.Content != null)
         {
-          await request.Content.ReadAsStringAsync();
+          await request.Content.ReadAsStringAsync().ConfigureAwait(false);
         }
 
         responseMessage = new HttpResponseMessage
@@ -159,10 +230,99 @@ namespace Goldlight.HttpClientTestSupport
       return this;
     }
 
+    /// <summary>
+    /// Add a custom validation logic for the incoming request. This happen at the start of the <see cref="SendAsync"/> call.
+    /// </summary>
+    /// <param name="requestValidator">A function shall return false if the request is invalid, otherwise true.</param>
+    /// <returns>Returns the <see cref="FakeHttpMessageHandler"/> for further customization fof the fake behavior.</returns>
+    /// <remarks>
+    /// This method allows to test and validate your incoming request. The request message gives
+    /// access to the HTTP method, Headers and Content of the request. If the request is invalid, return false in the
+    /// <paramref name="requestValidator"/>, otherwise return true. When the request is false, <see cref="HttpRequestAssertionException"/>
+    /// is thrown, that will fail the test.
+    /// </remarks>
+    public FakeHttpMessageHandler WithRequestValidator(Func<HttpRequestMessage, bool> requestValidator) => WithRequestValidator<HttpRequestAssertionException>(requestValidator);
 
-    public FakeHttpMessageHandler WithRequestValidator(Func<HttpRequestMessage, bool> requestValidator)
+    /// <summary>
+    /// Add a custom validation logic for the incoming request. This happen at the start of the <see cref="SendAsync"/> call.
+    /// </summary>
+    /// <typeparam name="TException">A type of AssertException that is allowed to be thrown.</typeparam>
+    /// <param name="requestValidator">A function shall return false if the request is invalid, otherwise true.</param>
+    /// <returns>Returns the <see cref="FakeHttpMessageHandler"/> for further customization fof the fake behavior.</returns>
+    /// <remarks>
+    /// This method allows to test and validate your incoming request. The request message gives
+    /// access to the HTTP method, Headers and Content of the request. If the request is invalid, return false in
+    /// <paramref name="requestValidator"/>, otherwise return true. When the request is false, <see cref="HttpRequestAssertionException"/>
+    /// is thrown, that will fail the test.
+    /// To enable custom assertion exceptions, specify <typeparamref name="TException"/>. This exception will be caught and handled as a HttpRequestAssertionException.
+    /// </remarks>
+    public FakeHttpMessageHandler WithRequestValidator<TException>(Func<HttpRequestMessage, bool> requestValidator) where TException : Exception
     {
-      _requestAssertions.Value.AddAction(requestValidator);
+      _requestAssertions.Value.AddAction(new RequestAssertion(requestValidator, typeof(TException)));
+      return this;
+    }
+
+    /// <summary>
+    /// Add a custom validation logic for the incoming request. This happen at the start of the <see cref="SendAsync"/> call.
+    /// </summary>
+    /// <typeparam name="TException">A type of AssertException that is allowed to be thrown.</typeparam>
+    /// <param name="requestValidator">A function shall throw an exception for invalid request.</param>
+    /// <returns>Returns the <see cref="FakeHttpMessageHandler"/> for further customization fof the fake behavior.</returns>
+    /// <remarks>
+    /// This method allows to test and validate your incoming request. If the request is invalid throw an exception matching the type
+    /// set as the type specified by <typeparamref name="TException"/>. This exception will be caught and handled as a HttpRequestAssertionException.
+    /// </remarks>
+    public FakeHttpMessageHandler WithRequestValidator<TException>(Action<HttpRequestMessage> requestValidator) where TException : Exception
+    {
+      _requestAssertions.Value.AddAction(new RequestAssertion(request => { requestValidator(request); return true; }, typeof(TException)));
+      return this;
+    }
+
+    /// <summary>
+    /// Add a custom validation logic for the incoming request. This happen at the start of the <see cref="SendAsync"/> call.
+    /// </summary>
+    /// <param name="requestValidator">A function shall return false if the request is invalid, otherwise true.</param>
+    /// <returns>Returns the <see cref="FakeHttpMessageHandler"/> for further customization fof the fake behavior.</returns>
+    /// <remarks>
+    /// This method allows to test and validate your incoming request. The request message gives
+    /// access to the HTTP method, Headers and Content of the request. If the request is invalid, return false in the
+    /// <paramref name="requestValidator"/>, otherwise return true. When the request is false, <see cref="HttpRequestAssertionException"/>
+    /// is thrown, that will fail the test.
+    /// </remarks>
+    public FakeHttpMessageHandler WithRequestValidatorAsync(Func<HttpRequestMessage, Task<bool>> requestValidator) => WithRequestValidatorAsync<HttpRequestAssertionException>(requestValidator);
+
+    /// <summary>
+    /// Add a custom validation logic for the incoming request. This happen at the start of the <see cref="SendAsync"/> call.
+    /// </summary>
+    /// <typeparam name="TException">A type of AssertException that is allowed to be thrown.</typeparam>
+    /// <param name="requestValidator">A function shall return false if the request is invalid, otherwise true.</param>
+    /// <returns>Returns the <see cref="FakeHttpMessageHandler"/> for further customization fof the fake behavior.</returns>
+    /// <remarks>
+    /// This method allows to test and validate your incoming request. The request message gives
+    /// access to the HTTP method, Headers and Content of the request. If the request is invalid, return false in
+    /// <paramref name="requestValidator"/>, otherwise return true. When the request is false, <see cref="HttpRequestAssertionException"/>
+    /// is thrown, that will fail the test.
+    /// To enable custom assertion exceptions, specify <typeparamref name="TException"/>. This exception will be caught and handled as a HttpRequestAssertionException.
+    /// </remarks>
+    public FakeHttpMessageHandler WithRequestValidatorAsync<TException>(Func<HttpRequestMessage, Task<bool>> requestValidator) where TException : Exception
+    {
+      _requestAssertions.Value.AddAction(new AsyncRequestAssertion(requestValidator, typeof(TException)));
+      return this;
+    }
+
+    /// <summary>
+    /// Add a custom validation logic for the incoming request. This happen at the start of the <see cref="SendAsync"/> call.
+    /// </summary>
+    /// <typeparam name="TException">A type of AssertException that is allowed to be thrown.</typeparam>
+    /// <param name="requestValidator">A function shall throw an exception for invalid request.</param>
+    /// <returns>Returns the <see cref="FakeHttpMessageHandler"/> for further customization fof the fake behavior.</returns>
+    /// <remarks>
+    /// This method allows to test and validate your incoming request. If the request is invalid throw an exception matching the type
+    /// set as the type specified by <typeparamref name="TException"/>. This exception will be caught and handled as a HttpRequestAssertionException.
+    /// </remarks>
+    public FakeHttpMessageHandler WithRequestValidatorAsync<TException>(Func<HttpRequestMessage, Task> requestValidator) where TException : Exception
+    {
+      _requestAssertions.Value.AddAction(new AsyncRequestAssertion(async request => { await requestValidator(request).ConfigureAwait(false); return true; }, typeof(TException)));
       return this;
     }
 

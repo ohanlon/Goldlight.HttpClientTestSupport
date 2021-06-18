@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Goldlight.HttpClientTestSupport;
 using Xunit;
+using Xunit.Sdk;
 
 namespace Goldlight.HttpClientTestSupportTests
 {
@@ -95,6 +96,82 @@ namespace Goldlight.HttpClientTestSupportTests
       List<SampleModel> sample = new List<SampleModel>() { new SampleModel(), new SampleModel() };
       FakeHttpMessageHandler fake = new FakeHttpMessageHandler()
         .WithRequestValidator(request => request.Method == HttpMethod.Get)
+        .WithExpectedContent(sample);
+      HttpClient httpClient = new HttpClient(fake);
+      ExampleControllerHandling exampleController = new ExampleControllerHandling(httpClient);
+      await exampleController.GetAll();
+    }
+
+    [Fact]
+    public async Task GivenRequest_WhenProcessing_ThenRequestValidatorHandlesCustomAssertionException()
+    {
+      List<SampleModel> sample = new List<SampleModel>() { new SampleModel(), new SampleModel() };
+      FakeHttpMessageHandler fake = new FakeHttpMessageHandler()
+        .WithRequestValidator<XunitException>(request => Assert.Equal(HttpMethod.Get, request.Method))
+        .WithExpectedContent(sample);
+      HttpClient httpClient = new HttpClient(fake);
+      ExampleControllerHandling exampleController = new ExampleControllerHandling(httpClient);
+      await exampleController.GetAll();
+    }
+
+    [Fact]
+    public async Task GivenRequest_WhenProcessing_ThenRequestValidatorHandlesCustomAssertionExceptionOrReturnValue()
+    {
+      List<SampleModel> sample = new List<SampleModel>() { new SampleModel(), new SampleModel() };
+      FakeHttpMessageHandler fake = new FakeHttpMessageHandler()
+        .WithRequestValidator<XunitException>(request =>
+        {
+          Assert.Equal(HttpMethod.Get, request.Method);
+          return true;
+        })
+        .WithExpectedContent(sample);
+      HttpClient httpClient = new HttpClient(fake);
+      ExampleControllerHandling exampleController = new ExampleControllerHandling(httpClient);
+      await exampleController.GetAll();
+    }
+
+    [Fact]
+    public async Task GivenRequest_WhenProcessingAsync_ThenRequestValidatorReturnValue()
+    {
+      List<SampleModel> sample = new List<SampleModel>() { new SampleModel(), new SampleModel() };
+      FakeHttpMessageHandler fake = new FakeHttpMessageHandler()
+        .WithRequestValidatorAsync(async request =>
+        {
+          var content = await request.Content.ReadAsStringAsync();
+          return content == null;
+        })
+        .WithExpectedContent(sample);
+      HttpClient httpClient = new HttpClient(fake);
+      ExampleControllerHandling exampleController = new ExampleControllerHandling(httpClient);
+      await exampleController.GetAll();
+    }
+
+    [Fact]
+    public async Task GivenRequest_WhenProcessingAsync_ThenRequestValidatorHandlesCustomAssertionExceptionOrReturnValue()
+    {
+      List<SampleModel> sample = new List<SampleModel>() { new SampleModel(), new SampleModel() };
+      FakeHttpMessageHandler fake = new FakeHttpMessageHandler()
+        .WithRequestValidatorAsync<XunitException>(async request =>
+        {
+          var content = await request.Content.ReadAsStringAsync();
+          return content == null;
+        })
+        .WithExpectedContent(sample);
+      HttpClient httpClient = new HttpClient(fake);
+      ExampleControllerHandling exampleController = new ExampleControllerHandling(httpClient);
+      await exampleController.GetAll();
+    }
+
+    [Fact]
+    public async Task GivenRequest_WhenProcessingAsync_ThenRequestValidatorHandlesCustomAssertionException()
+    {
+      List<SampleModel> sample = new List<SampleModel>() { new SampleModel(), new SampleModel() };
+      FakeHttpMessageHandler fake = new FakeHttpMessageHandler()
+        .WithRequestValidatorAsync<XunitException>(async request =>
+        {
+          var content = await request.Content.ReadAsStringAsync();
+          Assert.Null(content);
+        })
         .WithExpectedContent(sample);
       HttpClient httpClient = new HttpClient(fake);
       ExampleControllerHandling exampleController = new ExampleControllerHandling(httpClient);
