@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Xunit;
+using Xunit.Sdk;
 
 namespace Goldlight.HttpClientTestSupportTests
 {
@@ -145,7 +146,7 @@ namespace Goldlight.HttpClientTestSupportTests
     }
 
     [Fact]
-    public async Task GivenInvalidRequest_WhenRequestValudatorPerformed_ExceptionThrown()
+    public async Task GivenInvalidRequest_WhenRequestValidatorPerformed_ExceptionThrown()
     {
       FakeHttpMessageHandler fake = new FakeHttpMessageHandler()
         .WithRequestValidator(request => request.Headers.TryGetValues("Authorization", out var _));
@@ -154,10 +155,127 @@ namespace Goldlight.HttpClientTestSupportTests
     }
 
     [Fact]
-    public async Task GivenValidRequest_WhenRequestValudatorPerformed_NoExceptionThrows()
+    public async Task GivenValidRequest_WhenRequestValidatorPerformed_NoExceptionThrown()
     {
       FakeHttpMessageHandler fake = new FakeHttpMessageHandler()
         .WithRequestValidator(request => request.Method == HttpMethod.Post);
+      HttpClient httpClient = new HttpClient(fake);
+      HttpResponseMessage response = await httpClient.PostWrapperAsync("MyContent");
+    }
+
+    [Fact]
+    public async Task GivenValidRequest_WhenRequestValidatorReturnsTrue_NoExceptionThrown()
+    {
+      FakeHttpMessageHandler fake = new FakeHttpMessageHandler()
+        .WithRequestValidator(request => true);
+      HttpClient httpClient = new HttpClient(fake);
+      HttpResponseMessage response = await httpClient.PostWrapperAsync("MyContent");
+    }
+
+    [Fact]
+    public async Task GivenInvalidRequest_WhenRequestValidatorReturnsFalse_ExceptionThrown()
+    {
+      FakeHttpMessageHandler fake = new FakeHttpMessageHandler()
+        .WithRequestValidator(request => false);
+      HttpClient httpClient = new HttpClient(fake);
+      await Assert.ThrowsAsync<HttpRequestAssertionException>(() => httpClient.PostWrapperAsync("MyContent"));
+    }
+
+    [Fact]
+    public async Task GivenValidRequest_WhenRequestValidatorNotThrows_NoExceptionThrown()
+    {
+      FakeHttpMessageHandler fake = new FakeHttpMessageHandler()
+        .WithRequestValidator<XunitException>(request => Assert.NotNull(request));
+      HttpClient httpClient = new HttpClient(fake);
+      HttpResponseMessage response = await httpClient.PostWrapperAsync("MyContent");
+    }
+
+    [Fact]
+    public async Task GivenInvalidRequest_WhenRequestValidatorThrows_ExceptionThrown()
+    {
+      FakeHttpMessageHandler fake = new FakeHttpMessageHandler()
+        .WithRequestValidator<XunitException>(request => Assert.Null(request));
+      HttpClient httpClient = new HttpClient(fake);
+      await Assert.ThrowsAsync<HttpRequestAssertionException>(() => httpClient.PostWrapperAsync("MyContent"));
+    }
+
+    [Fact]
+    public async Task GivenValidRequestWithAssertion_WhenRequestValidatorThrowsNonAssertion_NoExceptionThrown()
+    {
+      FakeHttpMessageHandler fake = new FakeHttpMessageHandler()
+        .WithRequestValidator<InvalidOperationException>(request => Assert.Equal(HttpMethod.Get, request.Method));
+      HttpClient httpClient = new HttpClient(fake);
+      HttpResponseMessage response = await httpClient.PostWrapperAsync("MyContent");
+    }
+
+    [Fact]
+    public async Task GivenInvalidRequest_WhenAsyncRequestValidatorPerformed_ExceptionThrown()
+    {
+      FakeHttpMessageHandler fake = new FakeHttpMessageHandler()
+        .WithRequestValidatorAsync(async request => await request.Content.ReadAsStringAsync() == null);
+      HttpClient httpClient = new HttpClient(fake);
+      await Assert.ThrowsAsync<HttpRequestAssertionException>(() => httpClient.PostWrapperAsync("MyContent"));
+    }
+
+    [Fact]
+    public async Task GivenValidRequest_WhenAsyncRequestValidatorPerformed_NoExceptionThrown()
+    {
+      FakeHttpMessageHandler fake = new FakeHttpMessageHandler()
+        .WithRequestValidatorAsync(async request => await request.Content.ReadAsStringAsync() != null);
+      HttpClient httpClient = new HttpClient(fake);
+      HttpResponseMessage response = await httpClient.PostWrapperAsync("MyContent");
+    }
+
+    [Fact]
+    public async Task GivenValidRequest_WhenAsyncRequestValidatorReturnsTrue_NoExceptionThrown()
+    {
+      FakeHttpMessageHandler fake = new FakeHttpMessageHandler()
+        .WithRequestValidatorAsync(request => Task.FromResult(true));
+      HttpClient httpClient = new HttpClient(fake);
+      HttpResponseMessage response = await httpClient.PostWrapperAsync("MyContent");
+    }
+
+    [Fact]
+    public async Task GivenInvalidRequest_WhenAsyncRequestValidatorReturnsFalse_ExceptionThrown()
+    {
+      FakeHttpMessageHandler fake = new FakeHttpMessageHandler()
+        .WithRequestValidatorAsync(request => Task.FromResult(false));
+      HttpClient httpClient = new HttpClient(fake);
+      await Assert.ThrowsAsync<HttpRequestAssertionException>(() => httpClient.PostWrapperAsync("MyContent"));
+    }
+
+    [Fact]
+    public async Task GivenInvalidRequestWithAssertion_WhenAsyncRequestValidatorReturnsFalse_ExceptionThrown()
+    {
+      FakeHttpMessageHandler fake = new FakeHttpMessageHandler()
+        .WithRequestValidatorAsync<XunitException>(async request => { Assert.NotNull(await request.Content.ReadAsStringAsync()); return false; });
+      HttpClient httpClient = new HttpClient(fake);
+      await Assert.ThrowsAsync<HttpRequestAssertionException>(() => httpClient.PostWrapperAsync("MyContent"));
+    }
+
+    [Fact]
+    public async Task GivenValidRequestWithAssertion_WhenAsyncRequestValidatorReturnsTrue_NoExceptionThrown()
+    {
+      FakeHttpMessageHandler fake = new FakeHttpMessageHandler()
+        .WithRequestValidatorAsync<XunitException>(async request => { Assert.NotNull(await request.Content.ReadAsStringAsync()); return true; });
+      HttpClient httpClient = new HttpClient(fake);
+      HttpResponseMessage response = await httpClient.PostWrapperAsync("MyContent");
+    }
+
+    [Fact]
+    public async Task GivenInvalidRequestWithAssertion_WhenAsyncRequestValidatorThrows_ExceptionThrown()
+    {
+      FakeHttpMessageHandler fake = new FakeHttpMessageHandler()
+        .WithRequestValidatorAsync<XunitException>(async request => Assert.Null(await request.Content.ReadAsStringAsync()));
+      HttpClient httpClient = new HttpClient(fake);
+      await Assert.ThrowsAsync<HttpRequestAssertionException>(() => httpClient.PostWrapperAsync("MyContent"));
+    }
+
+    [Fact]
+    public async Task GivenValidRequestWithAssertion_WhenAsyncRequestValidatorDoesNotThrow_NoExceptionThrown()
+    {
+      FakeHttpMessageHandler fake = new FakeHttpMessageHandler()
+        .WithRequestValidatorAsync<XunitException>(async request => { Assert.NotNull(await request.Content.ReadAsStringAsync()); });
       HttpClient httpClient = new HttpClient(fake);
       HttpResponseMessage response = await httpClient.PostWrapperAsync("MyContent");
     }
