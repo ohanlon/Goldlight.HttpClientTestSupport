@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Text.Json;
@@ -154,7 +155,7 @@ namespace Goldlight.HttpClientTestSupport
 #if NETSTANDARD2_1
     private readonly Lazy<TrailingHeader> _trailingHeader = new Lazy<TrailingHeader>(() => new TrailingHeader());
 #endif
-    private string _content;
+    private HttpContent _content;
     private Version _version;
     private static readonly Version DefaultVersion = new Version(1, 0);
 
@@ -190,7 +191,7 @@ namespace Goldlight.HttpClientTestSupport
         {
           StatusCode = _statusCode,
           RequestMessage = request,
-          Content = new StringContent(_content ?? string.Empty),
+          Content = _content ?? new StringContent(string.Empty),
           Version = _version ?? DefaultVersion
         };
         if (_header.IsValueCreated)
@@ -403,8 +404,18 @@ namespace Goldlight.HttpClientTestSupport
     /// <param name="content">The content to populate the response.</param>
     public FakeHttpMessageHandler WithExpectedContent(string content)
     {
-      _content = content;
+      _content = content != null ? new StringContent(content) : null;
       return this;
+    }
+
+    /// <summary>
+    /// Set the content that is expected in the response.
+    /// </summary>
+    /// <param name="content">The content to populate the response.</param>
+    public FakeHttpMessageHandler WithExpectedContent(Stream content)
+    {
+        _content = content != null ? new StreamContent(content) : null;
+        return this;
     }
 
     /// <summary>
@@ -413,8 +424,15 @@ namespace Goldlight.HttpClientTestSupport
     /// <param name="content">The content to populate the response.</param>
     public FakeHttpMessageHandler WithExpectedContent<T>(T content) where T : class
     {
-      string converted = JsonSerializer.Serialize(content);
-      _content = converted;
+      if (content is null)
+      {
+          _content = null;
+      }
+      else
+      {
+          string converted = JsonSerializer.Serialize(content);
+          _content = new StringContent(converted);
+      }
       return this;
     }
 

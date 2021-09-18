@@ -1,16 +1,18 @@
 ﻿using System;
+using System.IO;
 using System.Linq;
-using Goldlight.HttpClientTestSupport;
 using System.Net;
 using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
+using Goldlight.HttpClientTestSupport;
 using Newtonsoft.Json;
 using Xunit;
 using Xunit.Sdk;
 
 namespace Goldlight.HttpClientTestSupportTests
 {
-  public class FakeHttpMessageHandlerTests
+    public class FakeHttpMessageHandlerTests
   {
     [Fact]
     public async Task GivenValidRequestWithDefaultsOnly_WhenGetIsCalled_ThenStatusIsOK()
@@ -105,6 +107,48 @@ namespace Goldlight.HttpClientTestSupportTests
       HttpClient httpClient = new HttpClient(fake);
       HttpResponseMessage response = await httpClient.PostWrapperAsync(content);
       Assert.Equal(returnedContent, await response.RequestMessage.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task GivenStreamContent_WhenGetCalled_ThenContentReturned()
+    {
+        string content = "{\"content\":\"set\"}";
+        using var memory = new MemoryStream();
+        using (var writer = new StreamWriter(memory, Encoding.UTF8, leaveOpen: true))
+        {
+            writer.Write(content);
+        }
+        FakeHttpMessageHandler fake = new FakeHttpMessageHandler().WithExpectedContent(content);
+        HttpClient httpClient = new HttpClient(fake);
+        HttpResponseMessage response = await httpClient.GetAsync("http://localhost");
+        Assert.Equal(content, await response.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task GivenNullString_WhenGetCalled_ThenContentReturned()
+    {
+        FakeHttpMessageHandler fake = new FakeHttpMessageHandler().WithExpectedContent((string)null);
+        HttpClient httpClient = new HttpClient(fake);
+        HttpResponseMessage response = await httpClient.GetAsync("http://localhost");
+        Assert.Equal(string.Empty, await response.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task GivenNullStream_WhenGetCalled_ThenContentReturned()
+    {
+        FakeHttpMessageHandler fake = new FakeHttpMessageHandler().WithExpectedContent((Stream)null);
+        HttpClient httpClient = new HttpClient(fake);
+        HttpResponseMessage response = await httpClient.GetAsync("http://localhost");
+        Assert.Equal(string.Empty, await response.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task GivenNullObject_WhenGetCalled_ThenContentReturned()
+    {
+        FakeHttpMessageHandler fake = new FakeHttpMessageHandler().WithExpectedContent<Exception>(null);
+        HttpClient httpClient = new HttpClient(fake);
+        HttpResponseMessage response = await httpClient.GetAsync("http://localhost");
+        Assert.Equal(string.Empty, await response.Content.ReadAsStringAsync());
     }
 
     [Fact]
