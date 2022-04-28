@@ -34,13 +34,23 @@ namespace Goldlight.HttpClientTestSupportTests
     }
 
     [Fact]
-    public async Task GivenExpectedContentWithSerializationOptions_WhenGetIsCalled_ThenContentIsSetToModel()
+    public async Task GivenExpectedContentWithSerializationOptions_WhenGetIsCalled_SerializationOptionsUsed()
     {
       FakeHttpMessageHandler fake = new FakeHttpMessageHandler().WithExpectedContent(new SampleModel(), new JsonSerializerOptions() { IgnoreReadOnlyProperties = true });
       HttpClient httpClient = new HttpClient(fake);
       HttpResponseMessage responseMessage = await httpClient.GetAsync("https://dummyaddress.com/someapi");
       string result = await responseMessage.Content.ReadAsStringAsync();
       Assert.Equal("{}", result);
+    }
+
+    [Fact]
+    public async Task GivenExpectedContentWithoutSerializationOptions_WhenGetIsCalled_UsesDefaultSerializationOptions()
+    {
+        FakeHttpMessageHandler fake = new FakeHttpMessageHandler().WithExpectedContent(new SampleModel(), null);
+        HttpClient httpClient = new HttpClient(fake);
+        HttpResponseMessage responseMessage = await httpClient.GetAsync("https://dummyaddress.com/someapi");
+        string result = await responseMessage.Content.ReadAsStringAsync();
+        Assert.Equal(@"{""FirstName"":""Stan"",""LastName"":""Lee"",""FullName"":""Stan Lee""}", result);
     }
 
     [Fact]
