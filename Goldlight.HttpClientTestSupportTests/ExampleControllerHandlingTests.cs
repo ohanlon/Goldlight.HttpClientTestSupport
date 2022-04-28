@@ -102,6 +102,20 @@ namespace Goldlight.HttpClientTestSupportTests
       await exampleController.GetAll();
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task GivenResponseWithSerializationOptions_WhenProcessing_ControllerIgnoresWhitespace(bool writeIndented)
+    {
+      SampleModel sample = new SampleModel();
+      FakeHttpMessageHandler fake = new FakeHttpMessageHandler()
+        .WithExpectedContent(sample, new System.Text.Json.JsonSerializerOptions() { WriteIndented = writeIndented })
+        .WithStatusCode(HttpStatusCode.OK);
+      HttpClient httpClient = new HttpClient(fake);
+      ExampleControllerHandling exampleController = new ExampleControllerHandling(httpClient);
+      await exampleController.GetById(Guid.NewGuid());
+    }
+
     [Fact]
     public async Task GivenRequest_WhenProcessing_ThenRequestValidatorHandlesCustomAssertionException()
     {

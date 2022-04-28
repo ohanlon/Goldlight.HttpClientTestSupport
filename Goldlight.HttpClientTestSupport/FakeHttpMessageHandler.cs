@@ -411,9 +411,10 @@ namespace Goldlight.HttpClientTestSupport
     /// Set the content that is expected in the response.
     /// </summary>
     /// <param name="content">The content to populate the response.</param>
-    public FakeHttpMessageHandler WithExpectedContent<T>(T content) where T : class
+    /// <param name="options">Options for custom serialization of the content.</param>
+    public FakeHttpMessageHandler WithExpectedContent<T>(T content, JsonSerializerOptions options = null) where T : class
     {
-      string converted = JsonSerializer.Serialize(content);
+      string converted = JsonSerializer.Serialize(content, options);
       _content = converted;
       return this;
     }
