@@ -151,7 +151,7 @@ namespace Goldlight.HttpClientTestSupport
   {
     private HttpStatusCode _statusCode = HttpStatusCode.OK;
     private readonly Lazy<Header> _header = new Lazy<Header>(() => new Header());
-#if NETSTANDARD2_1
+#if !NETSTANDARD2_0
     private readonly Lazy<TrailingHeader> _trailingHeader = new Lazy<TrailingHeader>(() => new TrailingHeader());
 #endif
     private string _content;
@@ -197,7 +197,7 @@ namespace Goldlight.HttpClientTestSupport
         {
           _header.Value.AddHeadersToResponse(responseMessage);
         }
-#if NETSTANDARD2_1
+#if !NETSTANDARD2_0
       if (_trailingHeader.IsValueCreated)
       {
         _trailingHeader.Value.AddHeadersToResponse(responseMessage);
@@ -373,7 +373,7 @@ namespace Goldlight.HttpClientTestSupport
       return this;
     }
 
-#if NETSTANDARD2_1
+#if !NETSTANDARD2_0
     /// <summary>
     /// Add a trailing response header.
     /// </summary>

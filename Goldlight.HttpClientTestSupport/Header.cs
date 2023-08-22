@@ -44,7 +44,7 @@ namespace Goldlight.HttpClientTestSupport
         }
     }
 
-#if NETSTANDARD2_1
+#if !NETSTANDARD2_0
     internal class TrailingHeader : Header
     {
         internal override void AddHeadersToResponse(HttpResponseMessage responseMessage)
